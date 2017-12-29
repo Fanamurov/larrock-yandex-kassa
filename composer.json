@@ -1,0 +1,31 @@
+{
+    "name": "fanamurov/larrock-yandex-kassa",
+    "description": "YandexKassa SDK bridge for larrockCMS",
+    "type": "library",
+    "license": "LGPL",
+    "authors": [
+        {
+            "name": "Alexandr Fanamurov",
+            "email": "fanamurov@ya.ru"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Larrock\\YandexKassa\\": "src"
+        }
+    },
+    "require": {
+        "fanamurov/larrock-core": "^0.3",
+        "yandex-money/yandex-checkout-sdk-php": "^1.0"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Larrock\\YandexKassa\\YandexKassaServiceProvider"
+            ],
+            "aliases": {
+                "YandexKassa": "Larrock\\YandexKassa\\Facades\\YandexKassa"
+            }
+        }
+    }
+}
