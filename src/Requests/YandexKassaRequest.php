@@ -28,6 +28,8 @@ class YandexKassaRequest extends FormRequest
             'scId' => 'required',
             'shopId' => 'required',
             'sum' => 'required',
+            'customerNumber' => 'required',
+            'orderNumber' => 'required',
         ];
     }
 
