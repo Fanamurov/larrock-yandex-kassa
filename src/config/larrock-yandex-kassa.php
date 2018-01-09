@@ -83,20 +83,20 @@ return [
     |--------------------------------------------------------------------------
     |
     */
-    'route' => [
-        'checkOrder' => [
-            'url' => '/yandex_kassa/checkOrder',
-            //'action' => [
-            //    'middleware' => 'web'
-            //]
-        ],
-        'cancelOrder' => [
-            'url' => '/yandex_kassa/cancelOrder'
-        ],
-        'paymentAviso' => [
-            'url' => '/yandex_kassa/paymentAviso',
-        ]
+
+    'routing' => [
+        'checkURL' => env('APP_URL') .'/ykassa/avisoURL',
+        'avisoURL' => env('APP_URL') .'/ykassa/avisoURL',
+        'successURL' => '',
+        'failURL' => env('APP_URL') .'/ykassa/avoidOrder',
+        'return_url' => '' //WHAAAT
     ],
+
+    'return_url' => env('APP_URL') .'/ykassa/return_url',
+
+    'confirmation_url' => env('APP_URL') .'/ykassa/confirmationOrder',
+
+    'avoid_url' => env('APP_URL') .'/ykassa/avoidOrder',
 
     /* Установка значение задержки между повторными запросами */
     'timeout' => null,

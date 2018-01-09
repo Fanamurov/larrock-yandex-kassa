@@ -3,7 +3,7 @@ namespace Larrock\YandexKassa\Exceptions;
 
 use Exception;
 
-class YandexKassaNoPaymentTypesProvidedException extends Exception
+class YandexKassaCreatePaymentNoRecept extends Exception
 {
     public $status = 422;
 
