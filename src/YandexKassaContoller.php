@@ -4,10 +4,14 @@ namespace Larrock\YandexKassa;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Larrock\ComponentCart\Facades\LarrockCart;
 use Larrock\ComponentPages\Facades\LarrockPages;
+use Larrock\YandexKassa\Exceptions\YandexKassaEmptyPaymentId;
+use Larrock\YandexKassa\Helper\CancelPayment;
+use Larrock\YandexKassa\Helper\CapturePayment;
+use Larrock\YandexKassa\Helper\CartAction;
 use Larrock\YandexKassa\Helper\CreatePayment;
-use Larrock\YandexKassa\Helper\Payment;
-use Mail;
+use Larrock\YandexKassa\Helper\GetPaymentInfo;
 use Session;
 
 class YandexKassaContoller extends Controller
@@ -16,7 +20,6 @@ class YandexKassaContoller extends Controller
 
     public function __construct()
     {
-        //YandexKassa::shareConfig();
         $this->YKassa = new YandexKassaComponent();
         $this->middleware(LarrockPages::combineFrontMiddlewares());
     }
@@ -27,250 +30,98 @@ class YandexKassaContoller extends Controller
      *
      * @param Request $request
      * @return \Illuminate\Http\RedirectResponse
+     * @throws Exceptions\YandexKassaCreatePaymentNoCustomerNumber
      * @throws Exceptions\YandexKassaCreatePaymentNoMetadata
+     * @throws Exceptions\YandexKassaCreatePaymentNoOrderItems
+     * @throws Exceptions\YandexKassaCreatePaymentNoOrderNumber
      * @throws Exceptions\YandexKassaCreatePaymentNoRecept
+     * @throws Exceptions\YandexKassaCreatePaymentNoReturnUrl
      * @throws Exceptions\YandexKassaCreatePaymentNoSum
      */
-    public function createPayment(Request $request)
+    public function createPayment(Request $request): \Illuminate\Http\RedirectResponse
     {
-        $request->merge([
+        /*$request->merge([
             'sum' => '1837.00',
             'cps_phone' => '89142165178',
             'cps_email' => 'fanamurov@ya.ru',
             'customerNumber' => 1,
-            'orderNumber' => 1
-        ]);
+            'orderNumber' => 2
+        ]);*/
         $paymentHelper = new CreatePayment();
         $payment = $paymentHelper->create($request);
 
-        /*$YKassa = new YandexKassaComponent();
-        $pay = $YKassa->client->createPayment($payment, uniqid('', true));
-        return redirect()->to($pay['confirmation']['confirmation_url']);*/
+        $YKassa = new YandexKassaComponent();
+        $pay = $YKassa->client->createPayment($payment);
 
-        return $this->test_createPayment();
-    }
+        $cartAction = new CartAction();
+        $cartAction->changePaymentData($pay);
 
-    public function test_createPayment()
-    {
-        $test['id'] = '21740069-000f-50be-b000-0486ffbf45b0';
-        $test['status'] = 'pending';
-        $test['paid'] = false;
-        $test['amount']['value'] = '1837.00';
-        $test['amount']['currency'] = 'RUB';
-        $test['confirmation']['type'] = 'redirect';
-        $test['confirmation']['confirmation_url'] = 'https://money.yandex.ru/api-pages/v2/payment-confirm/epl?orderId=21740069-000f-50be-b000-0486ffbf45b0';
-        $test['created_at'] = '2018-01-08T10:53:29.072Z';
-        $test['metadata']['customerNumber'] = 1;
-        $test['metadata']['orderNumber'] = 2;
-        //return $test;
-
-        return redirect()->to($test['confirmation']['confirmation_url']);
+        return redirect()->to($pay->confirmation->confirmation_url);
     }
 
     /**
+     * Ожидание уведомления о платеже
      * Шаг 3. Дождитесь уведомления о платеже
+     * Шаг 4. Подтвердите платеж или отмените
+     *
+     * @param $orderId
+     * @param $userId
+     * @return \Illuminate\Http\RedirectResponse
+     * @throws YandexKassaEmptyPaymentId
      */
-    public function confirmationOrder()
+    public function returnURL($orderId, $userId)
     {
-        $answer = $this->test_confirmationOrder();
-        $answer = json_decode($answer);
+        $cartAction = new CartAction();
+        if($get_order = LarrockCart::getModel()->whereOrderId($orderId)->whereUser($userId)->first()){
+            $getPaymentInfo = new GetPaymentInfo();
+            $payment = $getPaymentInfo->getPaymentInfo($get_order->invoiceId);
+            $cartAction->changePaymentData($payment);
 
-        /* Статус waiting_for_capture означает, что платеж прошел успешно.
-        Теперь вам нужно подтвердить готовность принять платеж. */
-        if($answer->event === 'payment.waiting_for_capture'){
-            if($this->checkOrderOnSite($answer)){
-                $this->test_capturePayment($answer);
-            }else{
-                $this->test_cancelPayment($answer);
+            switch ($payment->status) {
+                case 'waiting_for_capture':
+                    $capturePayment = new CapturePayment();
+                    $capturePayment->capturePayment($payment);
+                    $cartAction->changePaymentData($payment);
+                    break;
+                case 'pending':
+                    if($payment->paid === false){
+                        echo 'Ожидается поступление оплаты...';
+                        Session::push('message.success', 'Ожидается поступление оплаты...');
+                        //return redirect()->to($payment->confirmation->confirmation_url);
+                    }else{
+                        echo 'Платеж обрабатывается...';
+                    }
+                    return redirect()->to('/cabinet');
+                    //Session::push('message.success', 'Платеж обрабатывается...');
+                    break;
+                case 'succeeded':
+                    $cartAction->changePaymentData($payment);
+                    $cartAction->changeOrderStatus($payment);
+                    echo 'Платеж успешно проведен';
+                    Session::push('message.success', 'Платеж успешно проведен');
+                    return redirect()->to('/cabinet');
+                    break;
+                case 'canceled':
+                    $cartAction->changePaymentData($payment);
+                    $cartAction->changeOrderStatus($payment);
+                    echo 'Платеж отменен';
+                    Session::push('message.danger', 'Платеж отменен');
+                    return redirect()->to('/cabinet');
+                    break;
             }
-        }else{
-            return redirect()->to(config('larrock-yandex.kassa.routing.failURL', '/ykassa/avoidOrder'));
         }
-        dd($answer);
-    }
 
-    public function test_confirmationOrder()
-    {
-        $test['type'] = 'notification';
-        $test['event'] = 'payment.waiting_for_capture';
-        $test['id'] = '21740069-000f-50be-b000-0486ffbf45b0';
-        $test['status'] = 'waiting_for_capture';
-        $test['paid'] = true;
-        $test['amount']['value'] = '1837.00';
-        $test['amount']['currency'] = 'RUB';
-        $test['created_at'] = '2018-01-08T10:53:29.072Z';
-        $test['metadata']['customerNumber'] = 1;
-        $test['metadata']['orderNumber'] = 2;
-        $test['payment_method']['type'] = 'yandex_money';
-        $test['payment_method']['id'] = '731714f2-c6eb-4ae0-aeb6-8162e89c1065';
-        $test['payment_method']['saved'] = false;
-        $test['payment_method']['account_number'] = '410011066000000';
-        $test['payment_method']['title'] = 'Yandex.Money wallet 410011066000000';
-
-        $test = json_encode($test);
-
-        return $test;
-    }
-
-    /**
-     * Проверка заказа на сайте
-     * @param $answer
-     * @return bool|null
-     */
-    protected function checkOrderOnSite($answer)
-    {
-        $get_order = \LarrockCart::getModel()->whereOrderId($answer->metadata->orderNumber)
-            ->whereUser($answer->metadata->customerNumber)->first();
-        if($get_order &&
-            (float) $answer->amount->value === (float) $get_order->cost &&
-            $answer->amount->currency === 'RUB' &&
-            $get_order->status_pay === 'Не оплачено' &&
-            $get_order->status_order === 'Обработано'){
-                return TRUE;
-        }
-        return NULL;
-    }
-
-    public function getPaymentInfo($paymentId)
-    {
-        $payment = $this->YKassa->client->getPaymentInfo($paymentId);
-    }
-
-    /**
-     * Подтверждение платежа
-     * @param $answer
-     */
-    public function capturePayment($answer)
-    {
-        $idempotenceKey = uniqid('', true);
-        $response = $this->YKassa->client->capturePayment(
-            array(
-                'amount' => array(
-                    'value' => $answer->amount->value,
-                    'currency' => $answer->amount->currency,
-                ),
-                'recept' => array(
-
-                )
-            ),
-            $answer->id,
-            $idempotenceKey
-        );
-        $this->changeCartItem($answer);
-        \Log::info('NEW SUCCESS PAYMENT YANDEX.KASSA #'. $answer->id .' 
-        orderId:'. $answer->metadata->orderNumber .' userID:'. $answer->metadata->customerNumber);
-        dd($response);
-    }
-
-    public function test_capturePayment($answer)
-    {
-        $test['id'] = '21740069-000f-50be-b000-0486ffbf45b0';
-        $test['status'] = 'succeeded';
-        $test['paid'] = true;
-        $test['amount']['value'] = '1837.00';
-        $test['amount']['currency'] = 'RUB';
-        $test['created_at'] = '2018-01-08T10:53:29.072Z';
-        $test['metadata']['customerNumber'] = 1;
-        $test['metadata']['orderNumber'] = 2;
-        $test['payment_method']['type'] = 'yandex_money';
-        $test['payment_method']['id'] = '731714f2-c6eb-4ae0-aeb6-8162e89c1065';
-        $test['payment_method']['saved'] = false;
-        $test['payment_method']['account_number'] = '410011066000000';
-        $test['payment_method']['title'] = 'Yandex.Money wallet 410011066000000';
-
-        $test = json_encode($test);
-
-        //$this->changeCartItem($answer);
-
-        dd($test);
-
-        return $test;
-    }
-
-    /**
-     * Смена статуса оплаты заказа в БД
-     * @param $answer
-     */
-    protected function changeCartItem($answer)
-    {
-        $get_order = \LarrockCart::getModel()->whereOrderId($answer->metadata->orderNumber)
-            ->whereUser($answer->metadata->customerNumber)->first();
-        if($get_order){
-            $get_order->status_pay = 'Оплачено';
-            $get_order->pay_at = $answer->created_at;
-            $get_order->payment_data = json_encode($answer);
-            if($get_order->save()){
-                Session::push('message.success', 'Заказ #'. $get_order->order_id .' успешно оплачен');
-                $this->mailFullOrderChange($get_order);
-            }else{
-                Session::push('message.danger', 'Заказ #'. $get_order->order_id .' успешно оплачен, но произошла ошибка смены статуса заказа');
-                Session::push('message.danger', 'Администраторы сайта в кратчайшие сроки проверят данные и сменят статус оплаты');
-            }
-        }else{
-            Session::push('message.danger', 'Заказ #'. $answer->metadata->orderNumber .' не существует в нашем магазине');
-        }
+        Session::push('message.danger', 'Такого заказа нет в нашем магазине');
+        return redirect()->to('/');
     }
 
     /**
      * Отмена платежа
-     * @param $answer
+     * @param $paymentId
      */
-    public function cancelPayment($answer)
+    public function cancelPayment($paymentId)
     {
-        $idempotenceKey = uniqid('', true);
-
-        $response = $this->YKassa->client->cancelPayment(
-            $answer->id,
-            $idempotenceKey
-        );
-        \Log::info('NEW CANCEL PAYMENT YANDEX.KASSA #'. $answer->id .' 
-        orderId:'. $answer->metadata->orderNumber .' userID:'. $answer->metadata->customerNumber);
-        dd($response);
-    }
-
-    public function test_cancelPayment($answer)
-    {
-        $test['id'] = '21740069-000f-50be-b000-0486ffbf45b0';
-        $test['status'] = 'canceled';
-        $test['paid'] = true;
-        $test['amount']['value'] = '1837.00';
-        $test['amount']['currency'] = 'RUB';
-        $test['created_at'] = '2018-01-08T10:53:29.072Z';
-        $test['metadata']['customerNumber'] = 1;
-        $test['metadata']['orderNumber'] = 2;
-        $test['payment_method']['type'] = 'yandex_money';
-        $test['payment_method']['id'] = '731714f2-c6eb-4ae0-aeb6-8162e89c1065';
-        $test['payment_method']['saved'] = false;
-        $test['payment_method']['account_number'] = '410011066000000';
-        $test['payment_method']['title'] = 'Yandex.Money wallet 410011066000000';
-
-        $test = json_encode($test);
-
-        return $test;
-    }
-
-    /**
-     * Отправка email'а об изменении заказа
-     *
-     * @param         $order
-     * @param null    $subject
-     */
-    public function mailFullOrderChange($order, $subject = NULL)
-    {
-        $mails = array_map('trim', explode(',', env('MAIL_TO_ADMIN', 'robot@martds.ru')));
-        $mails[] = $order->email;
-
-        if( !$subject){
-            $subject = 'Заказ #'. $order->order_id .' на сайте '. env('SITE_NAME', array_get($_SERVER, 'HTTP_HOST')) .' изменен';
-        }
-        /** @noinspection PhpVoidFunctionResultUsedInspection */
-        Mail::send('larrock::emails.orderFull-delete', ['data' => $order->toArray(), 'subject' => $subject],
-            function($message) use ($mails, $subject){
-                $message->from('no-reply@'. array_get($_SERVER, 'HTTP_HOST'), env('MAIL_TO_ADMIN_NAME', 'ROBOT'));
-                $message->to($mails);
-                $message->subject($subject);
-            });
-
-        \Log::info('ORDER CHANGE: #'. $order->order_id .'. Order: '. json_encode($order));
+        $cancelPayment = new CancelPayment();
+        $cancelPayment->cancelPaymentById($paymentId);
     }
 }

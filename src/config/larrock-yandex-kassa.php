@@ -39,18 +39,13 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Shop Password
-    | Секретное слово магазина (shoppassword)
+    | Ключ к API (secret_key)
     |--------------------------------------------------------------------------
     |
-    | Secret word for generating md5-hash
-    |
-    | Секретное слово для формирования md5-хэша
-    |
-    | @see https://tech.yandex.com/money/doc/payment-solution/shop-config/parameters-docpage/
+    | @see https://kassa.yandex.ru/docs/guides/#bystryj-start
     |
     */
-    'shop_password' => env('YANDEX_KASSA_SHOP_PASSWORD', ''),
+    'secret_key' => env('YANDEX_KASSA_SECRET_KEY', null),
 
     /*
     |--------------------------------------------------------------------------
@@ -66,15 +61,42 @@ return [
     | оплаты. Все доступные способы оплаты можно найти
     | в документации Яндекс Кассы
     |
-    | @see https://tech.yandex.com/money/doc/payment-solution/reference/payment-type-codes-docpage/
+    | @see https://kassa.yandex.ru/docs/guides/#sposoby-oplaty
     |
     */
     'payment_types' => [
-        'PC', 'AC', 'MC', 'GP',
-        'WM', 'SB', 'MP', 'AB',
-        'MA', 'PB', 'QW', 'KV',
-        'QP'
+        'bank_card', 'yandex_money', 'qiwi',
+        'webmoney', 'alfabank', 'cash'
     ],
+
+    //TODO:реализовать оплату через Сбербанк Онлайн (смс)
+    //@see https://kassa.yandex.ru/docs/guides/#sberbank-onlajn-sms
+
+    /*
+     * Подключение логики для обеспечения оплаты по 54-ФЗ
+     */
+    'online_kassa' => env('YANDEX_KASSA_ONLINE_KASSA', FALSE),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Код системы налогооблажения (для 54ФЗ)
+    |--------------------------------------------------------------------------
+    |
+    | Код системы налогообложения передается в объекте receipt, в параметре tax_system_code.
+    | Возможные значения — цифра от 1 до 6.
+    |
+    | Код	Система налогообложения
+    | 1	    Общая система налогообложения
+    | 2	    Упрощенная (УСН, доходы)
+    | 3	    Упрощенная (УСН, доходы минус расходы)
+    | 4	    Единый налог на вмененный доход (ЕНВД)
+    | 5	    Единый сельскохозяйственный налог (ЕСН)
+    | 6	    Патентная система налогообложения
+    |
+    | @see https://kassa.yandex.ru/docs/guides/#kody-sistem-nalogooblozheniya
+    |
+    */
+    'tax_system_code' => env('YANDEX_KASSA_TAX_SYSTEM_CODE', 1),
 
     /*
     |--------------------------------------------------------------------------
@@ -85,18 +107,9 @@ return [
     */
 
     'routing' => [
-        'checkURL' => env('APP_URL') .'/ykassa/avisoURL',
-        'avisoURL' => env('APP_URL') .'/ykassa/avisoURL',
-        'successURL' => '',
-        'failURL' => env('APP_URL') .'/ykassa/avoidOrder',
-        'return_url' => '' //WHAAAT
+        'cancelPayment' => '/ykassa/cancelPayment',
+        'returnURL' => '/ykassa/returnURL'
     ],
-
-    'return_url' => env('APP_URL') .'/ykassa/return_url',
-
-    'confirmation_url' => env('APP_URL') .'/ykassa/confirmationOrder',
-
-    'avoid_url' => env('APP_URL') .'/ykassa/avoidOrder',
 
     /* Установка значение задержки между повторными запросами */
     'timeout' => null,

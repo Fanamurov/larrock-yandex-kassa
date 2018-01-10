@@ -3,7 +3,11 @@
 namespace Larrock\YandexKassa\Helper;
 
 use Illuminate\Http\Request;
+use Larrock\ComponentCart\Facades\LarrockCart;
+use Larrock\YandexKassa\Exceptions\YandexKassaCreatePaymentNoCustomerNumber;
 use Larrock\YandexKassa\Exceptions\YandexKassaCreatePaymentNoMetadata;
+use Larrock\YandexKassa\Exceptions\YandexKassaCreatePaymentNoOrderItems;
+use Larrock\YandexKassa\Exceptions\YandexKassaCreatePaymentNoOrderNumber;
 use Larrock\YandexKassa\Exceptions\YandexKassaCreatePaymentNoRecept;
 use Larrock\YandexKassa\Exceptions\YandexKassaCreatePaymentNoReturnUrl;
 use Larrock\YandexKassa\Exceptions\YandexKassaCreatePaymentNoSum;
@@ -16,27 +20,33 @@ use Larrock\YandexKassa\Exceptions\YandexKassaCreatePaymentNoSum;
 class CreatePayment
 {
     /**
-     * Чтобы принять оплату, необходимо создать объект платежа — Payment. Он содержит всю необходимую информацию для
-     * проведения оплаты (сумму, валюту и статус). У платежа линейный жизненный цикл, он последовательно переходит из статуса в статус.
      * @var array
      */
     public $payment;
 
     /**
+     * Чтобы принять оплату, необходимо создать объект платежа — Payment. Он содержит всю необходимую информацию для
+     * проведения оплаты (сумму, валюту и статус). У платежа линейный жизненный цикл, он последовательно переходит из статуса в статус.
+     *
      * @param Request $request
      * @return array
+     * @throws YandexKassaCreatePaymentNoCustomerNumber
      * @throws YandexKassaCreatePaymentNoMetadata
+     * @throws YandexKassaCreatePaymentNoOrderItems
+     * @throws YandexKassaCreatePaymentNoOrderNumber
      * @throws YandexKassaCreatePaymentNoRecept
+     * @throws YandexKassaCreatePaymentNoReturnUrl
      * @throws YandexKassaCreatePaymentNoSum
      */
-    public function create(Request $request)
+    public function create(Request $request): array
     {
-        $this->addAmountPayment($request)->addConfirmationPayment()->addReceptPayment($request)->addMetadata($request);
+        $this->addAmountPayment($request)->addConfirmationPayment($request)->addReceptPayment($request)->addMetadata($request);
         return $this->payment;
     }
 
     /**
      * Сумма платежа. Для некоторых способов оплаты с покупателя может взиматься дополнительная комиссия.
+     *
      * @param Request $request
      * @return $this
      * @throws \Larrock\YandexKassa\Exceptions\YandexKassaCreatePaymentNoSum
@@ -55,20 +65,31 @@ class CreatePayment
 
     /**
      * URL страницы на вашей стороне, на которую пользователь вернется после оплаты
+     *
+     * @param Request $request
      * @return $this
+     * @throws YandexKassaCreatePaymentNoCustomerNumber
+     * @throws YandexKassaCreatePaymentNoOrderNumber
      * @throws YandexKassaCreatePaymentNoReturnUrl
      */
-    protected function addConfirmationPayment()
+    protected function addConfirmationPayment(Request $request)
     {
-        if(config('larrock-yandex-kassa.return_url')){
+        if(config('larrock-yandex-kassa.routing.returnURL')){
+            if( !$request->has('orderNumber')){
+                throw new YandexKassaCreatePaymentNoOrderNumber('orderNumber не передан');
+            }
+            if( !$request->has('customerNumber')){
+                throw new YandexKassaCreatePaymentNoCustomerNumber('customerNumber не передан');
+            }
             $this->payment['confirmation'] = [
                 'type' => 'redirect',
                 'enforce' => true,
-                'return_url' => config('larrock-yandex-kassa.return_url'),
+                'return_url' => env('APP_URL') . config('larrock-yandex-kassa.routing.returnURL')
+                    .'/'. $request->get('orderNumber') .'/'. $request->get('customerNumber'),
             ];
             return $this;
         }
-        throw new YandexKassaCreatePaymentNoReturnUrl('Не указан return_url');
+        throw new YandexKassaCreatePaymentNoReturnUrl('Не указан returnURL');
     }
 
     /**
@@ -76,26 +97,46 @@ class CreatePayment
      * @param Request $request
      * @return $this
      * @throws \Larrock\YandexKassa\Exceptions\YandexKassaCreatePaymentNoRecept
+     * @throws YandexKassaCreatePaymentNoOrderItems
      */
     protected function addReceptPayment(Request $request)
     {
-        if($request->has('cps_phone') || $request->has('cps_email')){
-            $this->payment['recept'] = [
-                'items' => [],
-                'tax_system_code' => 1
-            ];
-        }else{
-            throw new YandexKassaCreatePaymentNoRecept('Данные для формирования чека не переданы (телефон или email)');
-        }
-        if($request->has('cps_email')){
-            $this->payment['recept'] = [
-                'email' => $request->get('cps_email')
-            ];
-        }else{
-            if($request->has('cps_phone')){
+        if(config('larrock-yandex-kassa.online_kassa') === TRUE){
+            if($request->has('cps_phone') || $request->has('cps_email')){
+                $get_order = LarrockCart::getModel()->whereOrderId($request->get('orderNumber'))
+                    ->whereUser($request->get('customerNumber'))->first();
+                $items = [];
+                foreach ($get_order->items as $item){
+                    $items[] = [
+                        'description' => $item->name,
+                        'quantity' => $item->qty,
+                        'amount' => [
+                            'value' => $item->price,
+                            'currency' => 'RUB'
+                        ],
+                        'vat_code' => config('larrock-yandex-kassa.tax_system_code')
+                    ];
+                }
+                if(\count($items) === 0){
+                    throw new YandexKassaCreatePaymentNoOrderItems('Не удалось узнать список товаров в заказе');
+                }
                 $this->payment['recept'] = [
-                    'phone' => $request->get('cps_phone')
+                    'items' => $items,
+                    'tax_system_code' => config('larrock-yandex-kassa.tax_system_code')
                 ];
+            }else{
+                throw new YandexKassaCreatePaymentNoRecept('Данные для формирования чека не переданы (телефон или email)');
+            }
+            if($request->has('cps_email')){
+                $this->payment['recept'] = [
+                    'email' => $request->get('cps_email')
+                ];
+            }else{
+                if($request->has('cps_phone')){
+                    $this->payment['recept'] = [
+                        'phone' => $request->get('cps_phone')
+                    ];
+                }
             }
         }
         return $this;

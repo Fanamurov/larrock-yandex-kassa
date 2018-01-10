@@ -50,17 +50,16 @@ class YandexKassaComponent extends Component
 
     public function __construct()
     {
-        $this->name = $this->table = 'ykassa';
+        $this->name = 'ykassa';
         $this->title = 'YandexKassa';
         $this->description = 'Мост к YandexKassa SDK';
-        $this->model = \config('larrock.models.yandexkassa', YandexKassaComponent::class);
-        $this->addRows()->addPositionAndActive()->isSearchable()->initYConfig()->getPaymentTypes();
+        $this->initYConfig()->getPaymentTypes();
     }
 
     protected function initYConfig()
     {
         $this->client = new Client();
-        $this->client->setAuth(config('larrock-yandex-kassa.shop_id'), config('larrock-yandex-kassa.sc_id'));
+        $this->client->setAuth(config('larrock-yandex-kassa.shop_id'), config('larrock-yandex-kassa.secret_key'));
         $this->client->setRetryTimeout(config('larrock-yandex-kassa.timeout'));
         $this->client->setMaxRequestAttempts(config('larrock-yandex-kassa.attempts', 3));
         $this->client->setLogger(config('larrock-yandex-kassa.logger'));
@@ -71,17 +70,6 @@ class YandexKassaComponent extends Component
         $this->yandex_kassa_sc_id = config('larrock-yandex-kassa.sc_id');
         $this->yandex_kassa_shop_id = config('larrock-yandex-kassa.shop_id');
         $this->yandex_kassa_return_url = config('larrock-yandex-kassa.routing.return_url');
-
-        return $this;
-    }
-
-    protected function addRows()
-    {
-        $row = new FormInput('title', 'Название блока');
-        $this->rows['title'] = $row->setValid('max:255|required')->setTypo()->setFillable();
-
-        $row = new FormTextarea('description', 'Текст блока');
-        $this->rows['description'] = $row->setTypo()->setFillable();
 
         return $this;
     }
