@@ -18,7 +18,7 @@
         <input name="paymentType" value="" type="hidden">
         <div class="uk-form-row">
             {{ csrf_field() }}
-            <button type="submit" class="uk-button uk-button-primary uk-button-large">Оплатить</button>
+            <button type="submit" class="yamoney-pay-button"><span class="yamoney-pay-button__text">Заплатить</span><br/><span class="yamoney-pay-button__subtext">через Яндекс</span></button>
         </div>
     </form>
     {!! JsValidator::formRequest('Larrock\YandexKassa\Requests\YandexKassaRequest', '#y_kassa_'. $data->order_id)->render() !!}

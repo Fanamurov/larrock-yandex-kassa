@@ -42,7 +42,7 @@ class CartAction
     }
 
     /**
-     * Смена статуса оплаты заказа в БД
+     * Смена статуса оплаты заказа в БД на "оплачено"
      *
      * @param $answer
      * @return bool|Cart|null
@@ -58,7 +58,33 @@ class CartAction
                     return TRUE;
                 }
 
+                \Log::alert('Заказ #'. $get_order->order_id .' успешно оплачен, но произошла ошибка смены статуса заказа');
                 Session::push('message.danger', 'Заказ #'. $get_order->order_id .' успешно оплачен, но произошла ошибка смены статуса заказа');
+                Session::push('message.danger', 'Администраторы сайта в кратчайшие сроки проверят данные и сменят статус оплаты');
+            }
+        }
+        return $get_order;
+    }
+
+    /**
+     * Смена статуса оплаты заказа в БД на "не оплачено" (после Refund)
+     *
+     * @param $answer
+     * @return bool|Cart|null
+     */
+    public function changeOrderStatusRefund($answer)
+    {
+        if($get_order = $this->checkOrderOnSite($answer)){
+            if($answer->status === 'succeeded'){
+                $get_order->status_pay = 'Не оплачено';
+                if($get_order->save()){
+                    Session::push('message.success', 'Заказ #'. $get_order->order_id .' переведен в статус "Не оплачено". Возврат средст осуществлен.');
+                    $this->mailFullOrderChange($get_order);
+                    return TRUE;
+                }
+
+                \Log::alert('Заказ #'. $get_order->order_id .' переведен в статус "Не оплачено", но произошла ошибка смены статуса заказа. Возврат средст осуществлен.');
+                Session::push('message.danger', 'Заказ #'. $get_order->order_id .' переведен в статус "Не оплачено", но произошла ошибка смены статуса заказа. Возврат средст осуществлен.');
                 Session::push('message.danger', 'Администраторы сайта в кратчайшие сроки проверят данные и сменят статус оплаты');
             }
         }

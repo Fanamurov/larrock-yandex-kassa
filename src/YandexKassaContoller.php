@@ -3,6 +3,7 @@
 namespace Larrock\YandexKassa;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Http\Request;
 use Larrock\ComponentCart\Facades\LarrockCart;
 use Larrock\ComponentPages\Facades\LarrockPages;
@@ -11,6 +12,7 @@ use Larrock\YandexKassa\Helper\CancelPayment;
 use Larrock\YandexKassa\Helper\CapturePayment;
 use Larrock\YandexKassa\Helper\CartAction;
 use Larrock\YandexKassa\Helper\CreatePayment;
+use Larrock\YandexKassa\Helper\CreateRefund;
 use Larrock\YandexKassa\Helper\GetPaymentInfo;
 use Session;
 
@@ -40,13 +42,6 @@ class YandexKassaContoller extends Controller
      */
     public function createPayment(Request $request): \Illuminate\Http\RedirectResponse
     {
-        /*$request->merge([
-            'sum' => '1837.00',
-            'cps_phone' => '89142165178',
-            'cps_email' => 'fanamurov@ya.ru',
-            'customerNumber' => 1,
-            'orderNumber' => 2
-        ]);*/
         $paymentHelper = new CreatePayment();
         $payment = $paymentHelper->create($request);
 
@@ -63,13 +58,16 @@ class YandexKassaContoller extends Controller
      * Ожидание уведомления о платеже
      * Шаг 3. Дождитесь уведомления о платеже
      * Шаг 4. Подтвердите платеж или отмените
+     * @see https://kassa.yandex.ru/docs/checkout-api/#podtwerzhdenie-platezha
+     * @see https://github.com/yandex-money/yandex-money-joinup/blob/master/checkout-api/031-01%20url%20для%20уведомлений.md
+     * @see https://github.com/yandex-money/yandex-money-joinup/blob/master/checkout-api/sample/rest/insomnia/how-to.md
      *
      * @param $orderId
      * @param $userId
      * @return \Illuminate\Http\RedirectResponse
      * @throws YandexKassaEmptyPaymentId
      */
-    public function returnURL($orderId, $userId)
+    public function returnURL($orderId, $userId): \Illuminate\Http\RedirectResponse
     {
         $cartAction = new CartAction();
         if($get_order = LarrockCart::getModel()->whereOrderId($orderId)->whereUser($userId)->first()){
@@ -80,32 +78,34 @@ class YandexKassaContoller extends Controller
             switch ($payment->status) {
                 case 'waiting_for_capture':
                     $capturePayment = new CapturePayment();
-                    $capturePayment->capturePayment($payment);
+                    $capture = $capturePayment->capturePayment($payment);
                     $cartAction->changePaymentData($payment);
+                    if($capture->status === 'succeeded'){
+                        echo trans('larrock::ykassa.status.default.succeeded');
+                    }
+                    if($capture->status === 'canceled'){
+                        echo trans('larrock::ykassa.status.default.canceled');
+                    }
+                    return response()->make('STATUS:'. $capture->status);
                     break;
                 case 'pending':
-                    if($payment->paid === false){
-                        echo 'Ожидается поступление оплаты...';
-                        Session::push('message.success', 'Ожидается поступление оплаты...');
-                        //return redirect()->to($payment->confirmation->confirmation_url);
-                    }else{
-                        echo 'Платеж обрабатывается...';
-                    }
+                    echo trans('larrock::ykassa.status.default.pending');
+                    Session::push('message.success', trans('larrock::ykassa.status.default.pending'));
+                    //return redirect()->to($payment->confirmation->confirmation_url);
                     return redirect()->to('/cabinet');
-                    //Session::push('message.success', 'Платеж обрабатывается...');
                     break;
                 case 'succeeded':
                     $cartAction->changePaymentData($payment);
                     $cartAction->changeOrderStatus($payment);
-                    echo 'Платеж успешно проведен';
-                    Session::push('message.success', 'Платеж успешно проведен');
+                    echo trans('larrock::ykassa.status.default.succeeded');
+                    Session::push('message.success', trans('larrock::ykassa.status.default.succeeded'));
                     return redirect()->to('/cabinet');
                     break;
                 case 'canceled':
                     $cartAction->changePaymentData($payment);
                     $cartAction->changeOrderStatus($payment);
-                    echo 'Платеж отменен';
-                    Session::push('message.danger', 'Платеж отменен');
+                    echo trans('larrock::ykassa.status.default.canceled');
+                    Session::push('message.success', trans('larrock::ykassa.status.default.canceled'));
                     return redirect()->to('/cabinet');
                     break;
             }
@@ -117,11 +117,53 @@ class YandexKassaContoller extends Controller
 
     /**
      * Отмена платежа
+     * Возврат может быть осуществлен только администраторами
+     *
+     * @param Guard $auth
      * @param $paymentId
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function cancelPayment($paymentId)
+    public function cancelPayment(Guard $auth, $paymentId): \Illuminate\Http\RedirectResponse
     {
-        $cancelPayment = new CancelPayment();
-        $cancelPayment->cancelPaymentById($paymentId);
+        if ($auth->check() && $auth->user()->level() >= 3) {
+            $cancelPayment = new CancelPayment();
+            $cancelPayment->cancelPaymentById($paymentId);
+            Session::push('message.success', trans('larrock::ykassa.status.canceled.succeeded'));
+        }else{
+            Session::push('message.danger', 'Недостаточно прав для выполнения операции');
+            Session::push('message.danger', trans('larrock::ykassa.status.canceled.error'));
+        }
+        return back();
+    }
+
+    /**
+     * Возврат платежа
+     * Возврат может быть осуществлен только администраторами
+     *
+     * @param Guard $auth
+     * @param $payment_id
+     * @return \Illuminate\Http\RedirectResponse
+     * @throws YandexKassaEmptyPaymentId
+     */
+    public function createRefund(Guard $auth, $payment_id): \Illuminate\Http\RedirectResponse
+    {
+        if ($auth->check() && $auth->user()->level() >= 3) {
+            $getPaymentInfo = new GetPaymentInfo();
+            $payment = $getPaymentInfo->getPaymentInfo($payment_id);
+
+            $createRefund = new CreateRefund();
+            $refund = $createRefund->createRefund($payment_id, $payment->amount->value);
+            if($refund->status === 'succeeded'){
+                Session::push('message.success', trans('larrock::ykassa.status.refund.succeeded'));
+                $cartAction = new CartAction();
+                $cartAction->changeOrderStatusRefund($refund);
+            }else{
+                Session::push('message.danger', trans('larrock::ykassa.status.refund.error'));
+            }
+        }else{
+            Session::push('message.danger', 'Недостаточно прав для выполнения операции');
+            Session::push('message.danger', trans('larrock::ykassa.status.refund.error'));
+        }
+        return back();
     }
 }
