@@ -1,4 +1,4 @@
-@if( !empty($data->invoiceId))
+@if( !empty($data->invoiceId) && isset($data->payment_data->status))
     @if($data->payment_data->status === 'succeeded')
         <div class="uk-form-row uk-alert uk-alert-success">
             <p>Оплачено {{ \Carbon\Carbon::parse($data->payment_data->created_at)->format('d/M/Y h:s:i') }}<br/>
