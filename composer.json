@@ -2,7 +2,7 @@
     "name": "fanamurov/larrock-yandex-kassa",
     "description": "YandexKassa SDK bridge for larrockCMS",
     "type": "library",
-    "license": "LGPL",
+    "license": "CC-BY-4.0",
     "authors": [
         {
             "name": "Alexandr Fanamurov",
