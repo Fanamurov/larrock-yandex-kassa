@@ -4,9 +4,11 @@
             <p>ID транзакции: {{ $data->payment_data->id }}</p>
             <p>Оплачено {{ \Carbon\Carbon::parse($data->payment_data->created_at)->format('d/M/Y h:s:i') }}<br/>
                 Сумма: {{ $data->payment_data->amount->value }} {{ $data->payment_data->amount->currency }}</p>
+            @role('Админ')
             <form action="/ykassa/createRefund/{{ $data->payment_data->id }}" method="post">
                 <button type="submit" class="uk-button uk-button-danger">Сделать возврат средств</button>
             </form>
+            @endrole
         </div>
     @elseif($data->payment_data->status === 'pending')
         <div class="uk-form-row uk-alert uk-alert-warning">
