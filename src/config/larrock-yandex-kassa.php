@@ -20,7 +20,6 @@ return [
     |
     */
     'shop_id' => env('YANDEX_KASSA_SHOP_ID', null),
-    'sc_id' => env('YANDEX_KASSA_SC_ID', null),
 
     /*
     |--------------------------------------------------------------------------
@@ -31,28 +30,6 @@ return [
     |
     */
     'secret_key' => env('YANDEX_KASSA_SECRET_KEY', null),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Payment types
-    | Способы оплаты
-    |--------------------------------------------------------------------------
-    |
-    | Payment types that will be given in payment form.
-    | All available payment types you can find
-    | in Yandex Kassa documentation
-    |
-    | Способы оплаты, которые будут предложены в форме
-    | оплаты. Все доступные способы оплаты можно найти
-    | в документации Яндекс Кассы
-    |
-    | @see https://kassa.yandex.ru/docs/guides/#sposoby-oplaty
-    |
-    */
-    'payment_types' => [
-        'bank_card', 'yandex_money', 'qiwi',
-        'webmoney', 'alfabank', 'cash'
-    ],
 
     //TODO:реализовать оплату через Сбербанк Онлайн (смс)
     //@see https://kassa.yandex.ru/docs/guides/#sberbank-onlajn-sms

@@ -62,53 +62,64 @@ class YandexKassaContoller extends Controller
      * @see https://github.com/yandex-money/yandex-money-joinup/blob/master/checkout-api/031-01%20url%20для%20уведомлений.md
      * @see https://github.com/yandex-money/yandex-money-joinup/blob/master/checkout-api/sample/rest/insomnia/how-to.md
      *
+     * @param Request $request
      * @param $orderId
      * @param $userId
      * @return \Illuminate\Http\RedirectResponse
      * @throws YandexKassaEmptyPaymentId
      */
-    public function returnURL($orderId, $userId): \Illuminate\Http\RedirectResponse
+    public function returnURL(Request $request, $orderId = null, $userId = null)
     {
-        $cartAction = new CartAction();
-        if($get_order = LarrockCart::getModel()->whereOrderId($orderId)->whereUser($userId)->first()){
-            $getPaymentInfo = new GetPaymentInfo();
-            $payment = $getPaymentInfo->getPaymentInfo($get_order->invoiceId);
-            $cartAction->changePaymentData($payment);
-
-            switch ($payment->status) {
-                case 'waiting_for_capture':
-                    $capturePayment = new CapturePayment();
-                    $capture = $capturePayment->capturePayment($payment);
-                    $cartAction->changePaymentData($payment);
-                    if($capture->status === 'succeeded'){
-                        echo trans('larrock::ykassa.status.default.succeeded');
-                    }
-                    if($capture->status === 'canceled'){
-                        echo trans('larrock::ykassa.status.default.canceled');
-                    }
-                    return response()->make('STATUS:'. $capture->status);
-                    break;
-                case 'pending':
-                    echo trans('larrock::ykassa.status.default.pending');
-                    Session::push('message.success', trans('larrock::ykassa.status.default.pending'));
-                    //return redirect()->to($payment->confirmation->confirmation_url);
-                    return redirect()->to('/cabinet');
-                    break;
-                case 'succeeded':
-                    $cartAction->changePaymentData($payment);
-                    $cartAction->changeOrderStatus($payment);
-                    echo trans('larrock::ykassa.status.default.succeeded');
-                    Session::push('message.success', trans('larrock::ykassa.status.default.succeeded'));
-                    return redirect()->to('/cabinet');
-                    break;
-                case 'canceled':
-                    $cartAction->changePaymentData($payment);
-                    $cartAction->changeOrderStatus($payment);
-                    echo trans('larrock::ykassa.status.default.canceled');
-                    Session::push('message.success', trans('larrock::ykassa.status.default.canceled'));
-                    return redirect()->to('/cabinet');
-                    break;
+        if( !$request->has('orderId')){
+            if($get_order = LarrockCart::getModel()->whereOrderId($orderId)->whereUser($userId)->first()){
+                if(empty($get_order->invoiceId)){
+                    Session::push('message.danger', 'Такого заказа нет в нашем магазине');
+                }else{
+                    $orderId = $get_order->invoiceId;
+                }
             }
+        }else{
+            $orderId = $request->get('orderId');
+        }
+
+        $cartAction = new CartAction();
+        $getPaymentInfo = new GetPaymentInfo();
+        $payment = $getPaymentInfo->getPaymentInfo($orderId);
+        $cartAction->changePaymentData($payment);
+
+        switch ($payment->status) {
+            case 'waiting_for_capture':
+                $capturePayment = new CapturePayment();
+                $capture = $capturePayment->capturePayment($payment);
+                $cartAction->changePaymentData($payment);
+                if($capture->status === 'succeeded'){
+                    echo trans('larrock::ykassa.status.default.succeeded');
+                }
+                if($capture->status === 'canceled'){
+                    echo trans('larrock::ykassa.status.default.canceled');
+                }
+                return response()->make('STATUS:'. $capture->status);
+                break;
+            case 'pending':
+                echo trans('larrock::ykassa.status.default.pending');
+                Session::push('message.success', trans('larrock::ykassa.status.default.pending'));
+                //return redirect()->to($payment->confirmation->confirmation_url);
+                return redirect()->to('/cabinet');
+                break;
+            case 'succeeded':
+                $cartAction->changePaymentData($payment);
+                $cartAction->changeOrderStatus($payment);
+                echo trans('larrock::ykassa.status.default.succeeded');
+                Session::push('message.success', trans('larrock::ykassa.status.default.succeeded'));
+                return redirect()->to('/cabinet');
+                break;
+            case 'canceled':
+                $cartAction->changePaymentData($payment);
+                $cartAction->changeOrderStatus($payment);
+                echo trans('larrock::ykassa.status.default.canceled');
+                Session::push('message.success', trans('larrock::ykassa.status.default.canceled'));
+                return redirect()->to('/cabinet');
+                break;
         }
 
         Session::push('message.danger', 'Такого заказа нет в нашем магазине');
