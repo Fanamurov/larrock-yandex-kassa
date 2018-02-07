@@ -82,6 +82,10 @@ class YandexKassaContoller extends Controller
             $orderId = $request->get('orderId');
         }
 
+        if(empty($orderId)){
+            return redirect()->to('/user');
+        }
+
         $cartAction = new CartAction();
         $getPaymentInfo = new GetPaymentInfo();
         $payment = $getPaymentInfo->getPaymentInfo($orderId);

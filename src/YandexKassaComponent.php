@@ -10,33 +10,6 @@ use YandexCheckout\Client;
 
 class YandexKassaComponent extends Component
 {
-    private $formAction = 'https://money.yandex.ru/eshop.xml';
-
-    private $testFormAction = 'https://demomoney.yandex.ru/eshop.xml';
-
-    /**
-     * Collection with available payment types
-     *
-     * @var \Illuminate\Support\Collection
-     */
-    public $paymentTypes;
-
-    /**
-     * Payment form submit url
-     *
-     * @var string
-     */
-    public $yandex_kassa_form_action;
-
-    /**
-     * Payment form submit method
-     *
-     * @var string
-     */
-    public $yandex_kassa_form_method;
-
-    public $yandex_kassa_sc_id;
-
     public $yandex_kassa_shop_id;
 
     public $yandex_kassa_return_url;
@@ -53,7 +26,7 @@ class YandexKassaComponent extends Component
         $this->name = 'ykassa';
         $this->title = 'YandexKassa';
         $this->description = 'Мост к YandexKassa SDK';
-        $this->initYConfig()->getPaymentTypes();
+        $this->initYConfig();
     }
 
     protected function initYConfig()
@@ -65,22 +38,8 @@ class YandexKassaComponent extends Component
         $this->client->setLogger(config('larrock-yandex-kassa.logger'));
         $this->client->setConfig(config('larrock-yandex-kassa.config', ['url' => 'https://payment.yandex.net/api/v3']));
 
-        $this->yandex_kassa_form_action = config('larrock-yandex-kassa.test_mode', true) ? $this->testFormAction : $this->formAction;
-        $this->yandex_kassa_form_method = config('larrock-yandex-kassa.test_mode', true) ? 'POST' : 'GET';
-        $this->yandex_kassa_sc_id = config('larrock-yandex-kassa.sc_id');
         $this->yandex_kassa_shop_id = config('larrock-yandex-kassa.shop_id');
         $this->yandex_kassa_return_url = config('larrock-yandex-kassa.routing.return_url');
-
-        return $this;
-    }
-
-    public function getPaymentTypes()
-    {
-        $this->paymentTypes = collect(config('larrock-yandex-kassa.payment_types', []));
-
-        if ($this->paymentTypes->isEmpty()) {
-            throw new YandexKassaNoPaymentTypesProvidedException('Не указаны возможные способы оплаты');
-        }
 
         return $this;
     }
