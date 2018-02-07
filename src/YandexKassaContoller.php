@@ -83,7 +83,7 @@ class YandexKassaContoller extends Controller
         }
 
         if(empty($orderId)){
-            return redirect()->to('/user');
+            Session::push('message.danger', 'orderId не передан');
         }
 
         $cartAction = new CartAction();
@@ -97,37 +97,34 @@ class YandexKassaContoller extends Controller
                 $capture = $capturePayment->capturePayment($payment);
                 $cartAction->changePaymentData($payment);
                 if($capture->status === 'succeeded'){
-                    echo trans('larrock::ykassa.status.default.succeeded');
+                    Session::push('message.success', trans('larrock::ykassa.status.default.pending'));
+                    return redirect()->to('/cabinet');
                 }
                 if($capture->status === 'canceled'){
-                    echo trans('larrock::ykassa.status.default.canceled');
+                    Session::push('message.success', trans('larrock::ykassa.status.default.canceled'));
+                    return redirect()->to('/cabinet');
                 }
                 return response()->make('STATUS:'. $capture->status);
                 break;
             case 'pending':
-                echo trans('larrock::ykassa.status.default.pending');
                 Session::push('message.success', trans('larrock::ykassa.status.default.pending'));
-                //return redirect()->to($payment->confirmation->confirmation_url);
                 return redirect()->to('/cabinet');
                 break;
             case 'succeeded':
                 $cartAction->changePaymentData($payment);
                 $cartAction->changeOrderStatus($payment);
-                echo trans('larrock::ykassa.status.default.succeeded');
                 Session::push('message.success', trans('larrock::ykassa.status.default.succeeded'));
                 return redirect()->to('/cabinet');
                 break;
             case 'canceled':
                 $cartAction->changePaymentData($payment);
                 $cartAction->changeOrderStatus($payment);
-                echo trans('larrock::ykassa.status.default.canceled');
                 Session::push('message.success', trans('larrock::ykassa.status.default.canceled'));
                 return redirect()->to('/cabinet');
                 break;
         }
 
-        Session::push('message.danger', 'Такого заказа нет в нашем магазине');
-        return redirect()->to('/');
+        return redirect()->to('/cabinet');
     }
 
     /**

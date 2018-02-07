@@ -6,6 +6,7 @@
                 Сумма: {{ $data->payment_data->amount->value }} {{ $data->payment_data->amount->currency }}</p>
             @role('Админ')
             <form action="/ykassa/createRefund/{{ $data->payment_data->id }}" method="post">
+                {{ csrf_field() }}
                 <button type="submit" class="uk-button uk-button-danger">Сделать возврат средств</button>
             </form>
             @endrole

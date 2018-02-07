@@ -74,9 +74,11 @@ class CartAction
      */
     public function changeOrderStatusRefund($answer)
     {
-        if($get_order = $this->checkOrderOnSite($answer)){
+        if($get_order = \LarrockCart::getModel()->where('invoiceId', '=', $answer->paymentId)->first()){
             if($answer->status === 'succeeded'){
                 $get_order->status_pay = 'Не оплачено';
+                $get_order->invoiceId = '';
+                $get_order->payment_data = '';
                 if($get_order->save()){
                     Session::push('message.success', 'Заказ #'. $get_order->order_id .' переведен в статус "Не оплачено". Возврат средст осуществлен.');
                     $this->mailFullOrderChange($get_order);
@@ -87,6 +89,8 @@ class CartAction
                 Session::push('message.danger', 'Заказ #'. $get_order->order_id .' переведен в статус "Не оплачено", но произошла ошибка смены статуса заказа. Возврат средст осуществлен.');
                 Session::push('message.danger', 'Администраторы сайта в кратчайшие сроки проверят данные и сменят статус оплаты');
             }
+        }else{
+            Session::push('message.danger', 'Заказа с таким paymentID нет в нашем магазине');
         }
         return $get_order;
     }
