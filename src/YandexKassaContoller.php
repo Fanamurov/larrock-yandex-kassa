@@ -97,7 +97,8 @@ class YandexKassaContoller extends Controller
                 $capture = $capturePayment->capturePayment($payment);
                 $cartAction->changePaymentData($payment);
                 if($capture->status === 'succeeded'){
-                    Session::push('message.success', trans('larrock::ykassa.status.default.pending'));
+                    Session::push('message.success', trans('larrock::ykassa.status.default.succeeded'));
+                    $cartAction->changeOrderStatus($payment);
                     return redirect()->to('/cabinet');
                 }
                 if($capture->status === 'canceled'){
