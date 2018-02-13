@@ -95,15 +95,15 @@ class YandexKassaContoller extends Controller
             case 'waiting_for_capture':
                 $capturePayment = new CapturePayment();
                 $capture = $capturePayment->capturePayment($payment);
+                $payment = $getPaymentInfo->getPaymentInfo($orderId);
+                $cartAction->changeOrderStatus($payment);
                 $cartAction->changePaymentData($payment);
                 if($capture->status === 'succeeded'){
                     Session::push('message.success', trans('larrock::ykassa.status.default.succeeded'));
-                    $cartAction->changeOrderStatus($payment);
                     return redirect()->to('/cabinet');
                 }
                 if($capture->status === 'canceled'){
                     Session::push('message.success', trans('larrock::ykassa.status.default.canceled'));
-                    $cartAction->changeOrderStatus($payment);
                     return redirect()->to('/cabinet');
                 }
                 return response()->make('STATUS:'. $capture->status);
