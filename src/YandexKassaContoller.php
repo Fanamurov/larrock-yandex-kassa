@@ -103,12 +103,15 @@ class YandexKassaContoller extends Controller
                 }
                 if($capture->status === 'canceled'){
                     Session::push('message.success', trans('larrock::ykassa.status.default.canceled'));
+                    $cartAction->changeOrderStatus($payment);
                     return redirect()->to('/cabinet');
                 }
                 return response()->make('STATUS:'. $capture->status);
                 break;
             case 'pending':
                 Session::push('message.success', trans('larrock::ykassa.status.default.pending'));
+                $cartAction->changePaymentData($payment);
+                $cartAction->changeOrderStatus($payment);
                 return redirect()->to('/cabinet');
                 break;
             case 'succeeded':
