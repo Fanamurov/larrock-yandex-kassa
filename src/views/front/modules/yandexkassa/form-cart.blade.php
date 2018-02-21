@@ -7,9 +7,9 @@
 @if($data->status_order === 'Обработано')
     <form action="/ykassa/createPayment" method="POST" class="uk-form" id="y_kassa_{{ $data->order_id }}">
         @if($data->cost_discount > 0 && $data->cost_discount < $data->cost)
-            <input name="sum" type="hidden" value="{{ $data->cost_discount }}">
+            <input name="sum" type="hidden" value="{{ $data->cost_discount + $data->cost_delivery }}">
         @else
-            <input name="sum" type="hidden" value="{{ $data->cost }}">
+            <input name="sum" type="hidden" value="{{ $data->cost + $data->cost_delivery }}">
         @endif
         <input name="customerNumber" value="{{ Auth::id() }}" type="hidden"/>
         <input name="orderNumber" value="{{ $data->order_id }}" type="hidden"/>
