@@ -15,7 +15,7 @@
         }
     },
     "require": {
-        "fanamurov/larrock-core": "^0.3",
+        "fanamurov/larrock-core": "^1.0",
         "yandex-money/yandex-checkout-sdk-php": "^1.0"
     },
     "extra": {

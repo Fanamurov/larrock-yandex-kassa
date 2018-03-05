@@ -3,9 +3,6 @@
 namespace Larrock\YandexKassa;
 
 use Larrock\Core\Component;
-use Larrock\Core\Helpers\FormBuilder\FormInput;
-use Larrock\Core\Helpers\FormBuilder\FormTextarea;
-use Larrock\YandexKassa\Exceptions\YandexKassaNoPaymentTypesProvidedException;
 use YandexCheckout\Client;
 
 class YandexKassaComponent extends Component
@@ -16,7 +13,6 @@ class YandexKassaComponent extends Component
 
     /**
      * Yandex.Kassa SDK
-     *
      * @var Client
      */
     public $client;

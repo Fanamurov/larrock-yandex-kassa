@@ -5,18 +5,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class YandexKassaRequest extends FormRequest
 {
-
-    /**
-     * @return bool
-     */
+    /** @return bool */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * @return array
-     */
+    /** @return array */
     public function rules()
     {
         return [
