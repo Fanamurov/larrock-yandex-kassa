@@ -16,13 +16,13 @@ class CreateRefund
     public function createRefund($payment_id, $sum)
     {
         $answer = $this->YKassa->client->createRefund(
-            array(
-                'amount' => array(
+            [
+                'amount' => [
                     'value' => $sum,
                     'currency' => 'RUB',
-                ),
+                ],
                 'payment_id' => $payment_id,
-            )
+            ]
         );
 
         return $answer;

@@ -13,5 +13,4 @@ class YandexKassa extends Facade
     {
         return 'yandexkassa';
     }
-
 }
