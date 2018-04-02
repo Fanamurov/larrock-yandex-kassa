@@ -1,4 +1,5 @@
 <?php
+
 namespace Larrock\YandexKassa\Exceptions;
 
 use Exception;

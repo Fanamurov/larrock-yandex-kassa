@@ -4,7 +4,7 @@
 Route::post('/ykassa/createPayment', 'Larrock\YandexKassa\YandexKassaContoller@createPayment')->name('YandexKassa.createPayment');
 
 //Проверка статуса платежа
-Route::get(config('larrock-yandex.kassa.routing.returnURL', '/ykassa/returnURL') .'/{orderId?}/{user?}',
+Route::get(config('larrock-yandex.kassa.routing.returnURL', '/ykassa/returnURL').'/{orderId?}/{user?}',
     'Larrock\YandexKassa\YandexKassaContoller@returnURL')->name('YandexKassa.returnURL');
 
 //Возврат платежа (админ. метод)

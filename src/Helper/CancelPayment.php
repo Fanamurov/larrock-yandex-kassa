@@ -2,8 +2,8 @@
 
 namespace Larrock\YandexKassa\Helper;
 
-use Larrock\YandexKassa\YandexKassaComponent;
 use Session;
+use Larrock\YandexKassa\YandexKassaComponent;
 
 class CancelPayment
 {
@@ -15,7 +15,7 @@ class CancelPayment
     }
 
     /**
-     * Отмена платежа
+     * Отмена платежа.
      * @param $answer
      * @return \YandexCheckout\Request\Payments\Payment\CancelResponse
      */
@@ -24,13 +24,14 @@ class CancelPayment
         $response = $this->YKassa->client->cancelPayment(
             $answer->id
         );
-        \Log::info('CANCEL PAYMENT YANDEX.KASSA #'. $answer->id .' 
-        orderId:'. $answer->metadata->orderNumber .' userID:'. $answer->metadata->customerNumber);
+        \Log::info('CANCEL PAYMENT YANDEX.KASSA #'.$answer->id.' 
+        orderId:'.$answer->metadata->orderNumber.' userID:'.$answer->metadata->customerNumber);
+
         return $response;
     }
 
     /**
-     * Отмена платежа по ID
+     * Отмена платежа по ID.
      * @param $paymentId
      * @return \YandexCheckout\Request\Payments\Payment\CancelResponse
      */
@@ -44,6 +45,7 @@ class CancelPayment
         $cartAction->changePaymentData($payment);
         $cartAction->changeOrderStatus($payment);
         Session::push('message.danger', 'Платеж отменен');
+
         return $payment;
     }
 }

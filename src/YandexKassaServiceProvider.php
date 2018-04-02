@@ -18,10 +18,10 @@ class YandexKassaServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'larrock');
 
         $this->publishes([
-            __DIR__.'/../views' => base_path('resources/views/vendor/larrock')
+            __DIR__.'/../views' => base_path('resources/views/vendor/larrock'),
         ], 'views');
         $this->publishes([
-            __DIR__.'/../lang' => resource_path('lang/vendor/larrock')
+            __DIR__.'/../lang' => resource_path('lang/vendor/larrock'),
         ], 'lang');
         $this->publishes([
             __DIR__.'/../config/larrock-yandex-kassa.php' => config_path('larrock-yandex-kassa.php'),
@@ -35,10 +35,11 @@ class YandexKassaServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->mergeConfigFrom( __DIR__.'/../config/larrock-yandex-kassa.php', 'larrock-yandex-kassa');
+        $this->mergeConfigFrom(__DIR__.'/../config/larrock-yandex-kassa.php', 'larrock-yandex-kassa');
 
-        $this->app->singleton('yandexkassa', function() {
+        $this->app->singleton('yandexkassa', function () {
             $class = config('larrock.components.yandexkassa', YandexKassaComponent::class);
+
             return new $class;
         });
     }

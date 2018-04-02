@@ -2,8 +2,8 @@
 
 namespace Larrock\YandexKassa;
 
-use Larrock\Core\Component;
 use YandexCheckout\Client;
+use Larrock\Core\Component;
 
 class YandexKassaComponent extends Component
 {
@@ -12,7 +12,7 @@ class YandexKassaComponent extends Component
     public $yandex_kassa_return_url;
 
     /**
-     * Yandex.Kassa SDK
+     * Yandex.Kassa SDK.
      * @var Client
      */
     public $client;

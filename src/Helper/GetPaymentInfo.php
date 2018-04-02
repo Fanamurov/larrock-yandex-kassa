@@ -2,8 +2,8 @@
 
 namespace Larrock\YandexKassa\Helper;
 
-use Larrock\YandexKassa\Exceptions\YandexKassaEmptyPaymentId;
 use Larrock\YandexKassa\YandexKassaComponent;
+use Larrock\YandexKassa\Exceptions\YandexKassaEmptyPaymentId;
 
 class GetPaymentInfo
 {
@@ -16,9 +16,10 @@ class GetPaymentInfo
 
     public function getPaymentInfo($paymentId)
     {
-        if(empty($paymentId)){
+        if (empty($paymentId)) {
             throw new YandexKassaEmptyPaymentId('paymentID пустой');
         }
+
         return $this->YKassa->client->getPaymentInfo($paymentId);
     }
 }

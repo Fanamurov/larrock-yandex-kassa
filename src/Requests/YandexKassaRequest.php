@@ -1,4 +1,5 @@
 <?php
+
 namespace Larrock\YandexKassa\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
